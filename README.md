@@ -20,7 +20,7 @@ Interfaz web moderna y responsiva desarrollada con **Vue 3 (Composition API)**, 
 ## 🛠️ Requisitos
 
 - Node.js >= 18.x
-- El backend de **viewTag** corriendo en `http://localhost:8000` (o configurado mediante proxy en `vite.config.ts`).
+- El backend de **datasetCreator** corriendo en `http://localhost:8000` (o configurado mediante proxy en `vite.config.ts`).
 
 ---
 

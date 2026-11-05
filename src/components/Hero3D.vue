@@ -41,12 +41,12 @@ onUnmounted(() => {
       <TresDirectionalLight :position="[5, 5, 5]" :intensity="3.5" />
       <TresPointLight :position="[-5, -5, -2]" :intensity="2" color="#3b82f6" />
 
-      <!-- Grupo contenedor con escala reducida para que el pato encaje perfectamente -->
+      <!-- Grupo contenedor con escala intermedia (0.12) para que ni sea enorme ni muy pequeña -->
       <TresGroup ref="groupRef" :position="[0, -0.4, 0]">
         <Suspense>
           <GLTFModel 
             path="/models/pato.glb" 
-            :scale="[0.03, 0.03, 0.03]" 
+            :scale="[0.12, 0.12, 0.12]" 
           />
         </Suspense>
       </TresGroup>

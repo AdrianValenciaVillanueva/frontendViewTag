@@ -34,15 +34,15 @@ onUnmounted(() => {
 <template>
   <div class="h-64 w-full relative overflow-hidden rounded-none bg-white border-2 border-slate-900 shadow-[6px_6px_0_0_#0f172a]">
     <TresCanvas clear-color="#f8fafc" antialias>
-      <TresPerspectiveCamera :position="[0, 1.5, 4]" :fov="50" />
+      <TresPerspectiveCamera :position="[0, 0.5, 4]" :fov="50" />
       <OrbitControls :enable-zoom="false" :enable-pan="false" />
       
       <TresAmbientLight :intensity="2.5" />
       <TresDirectionalLight :position="[5, 5, 5]" :intensity="3.5" />
       <TresPointLight :position="[-5, -5, -2]" :intensity="2" color="#3b82f6" />
 
-      <!-- Grupo contenedor con escala intermedia (0.12) para que ni sea enorme ni muy pequeña -->
-      <TresGroup ref="groupRef" :position="[0, -0.4, 0]">
+      <!-- Grupo centrado perfectamente en el centro vertical y horizontal -->
+      <TresGroup ref="groupRef" :position="[0, -0.9, 0]">
         <Suspense>
           <GLTFModel 
             path="/models/pato.glb" 

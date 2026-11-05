@@ -38,7 +38,7 @@
 
       <!-- 3D Interactive Component in Hero -->
       <div class="lg:col-span-5">
-        <Hero3D />
+        <Hero3D :loading="loading" />
       </div>
     </div>
 

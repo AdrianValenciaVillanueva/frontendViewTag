@@ -10,7 +10,7 @@
           Encuentra cualquier instante en tus videos con <span class="bg-blue-600 text-white px-2 py-1 inline-block border-2 border-slate-900 shadow-[3px_3px_0_0_#0f172a]">IA Avanzada</span>
         </h1>
         <p class="text-slate-700 text-base leading-relaxed font-medium">
-          Escribe lo que buscas en lenguaje natural, filtra con precisión milimétrica y exporta tus datasets listos para entrenar modelos de IA.
+          Escribe lo que buscas en lenguaje natural, filtra con precisión milimétrica, excluye lo que no necesites y exporta tus datasets.
         </p>
 
         <!-- Search Form -->
@@ -84,8 +84,12 @@
         </div>
       </div>
 
-      <!-- Bulk Save Action -->
-      <div class="flex items-center gap-3">
+      <!-- Bulk Save Action & Excluded Summary -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div v-if="excludedCount > 0" class="flex items-center gap-2 text-xs font-bold text-amber-700 bg-amber-50 border-2 border-slate-900 px-3 py-2 shadow-[2px_2px_0_0_#0f172a]">
+          <span>🚫 {{ excludedCount }} excluidas</span>
+          <button @click="restoreAllExclusions" class="underline hover:text-slate-900 cursor-pointer">Restaurar</button>
+        </div>
         <input
           v-model="bulkLabel"
           type="text"
@@ -94,10 +98,10 @@
         />
         <button
           @click="saveAllFilteredToDataset"
-          :disabled="filteredResults.length === 0 || loading"
+          :disabled="readyToSaveResults.length === 0 || loading"
           class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-5 py-2.5 rounded-none border-2 border-slate-900 transition-all shadow-[4px_4px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_#0f172a] disabled:opacity-50 flex items-center gap-2 cursor-pointer"
         >
-          <Download class="w-4 h-4" /> Guardar filtrados ({{ filteredResults.length }})
+          <Download class="w-4 h-4" /> Guardar dataset ({{ readyToSaveResults.length }})
         </button>
       </div>
     </div>
@@ -117,7 +121,7 @@
     <!-- Results Section -->
     <div v-if="hasSearched" class="space-y-6">
       <div class="flex items-center justify-between text-sm text-slate-700 px-2 font-bold">
-        <p>Mostrando <span class="text-slate-950 font-black">{{ filteredResults.length }}</span> de <span class="text-slate-950 font-black">{{ total }}</span> resultados coincidentes</p>
+        <p>Mostrando <span class="text-slate-950 font-black">{{ readyToSaveResults.length }}</span> disponibles (<span class="text-amber-700 font-bold">{{ excludedCount }} excluidas</span>) de <span class="text-slate-950 font-black">{{ total }}</span> resultados coincidentes</p>
       </div>
 
       <div v-if="filteredResults.length === 0 && !loading" class="text-center py-20 bg-white border-2 border-slate-900 rounded-none shadow-[6px_6px_0_0_#0f172a] space-y-3">
@@ -129,7 +133,8 @@
         <div
           v-for="item in filteredResults"
           :key="item.frame_id"
-          class="bg-white border-2 border-slate-900 rounded-none overflow-hidden flex flex-col justify-between shadow-[5px_5px_0_0_#0f172a] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0_0_#0f172a] transition-all duration-150 group"
+          class="bg-white border-2 border-slate-900 rounded-none overflow-hidden flex flex-col justify-between shadow-[5px_5px_0_0_#0f172a] transition-all duration-150 group"
+          :class="{ 'opacity-50 bg-slate-100 border-dashed': excludedMap[item.frame_id] }"
         >
           <!-- Frame Image Preview -->
           <div class="aspect-video bg-slate-100 relative overflow-hidden flex items-center justify-center border-b-2 border-slate-900">
@@ -145,6 +150,18 @@
             <div class="absolute top-3 right-3 bg-blue-600 border-2 border-slate-900 px-2.5 py-1 rounded-none text-xs font-mono font-black text-white shadow-[2px_2px_0_0_#0f172a]">
               {{ (item.score * 100).toFixed(1) }}%
             </div>
+
+            <!-- Exclude / Restore Toggle Button Overlay -->
+            <button
+              @click="toggleExclude(item.frame_id)"
+              class="absolute top-3 left-3 border-2 border-slate-900 px-2 py-1 text-xs font-bold transition-all shadow-[2px_2px_0_0_#0f172a] cursor-pointer z-10 flex items-center gap-1"
+              :class="excludedMap[item.frame_id] ? 'bg-amber-400 hover:bg-amber-300 text-slate-950' : 'bg-red-500 hover:bg-red-400 text-white'"
+              :title="excludedMap[item.frame_id] ? 'Restaurar imagen' : 'Excluir imagen del dataset'"
+            >
+              <EyeOff v-if="!excludedMap[item.frame_id]" class="w-3.5 h-3.5" />
+              <Eye v-else class="w-3.5 h-3.5" />
+              <span>{{ excludedMap[item.frame_id] ? 'Restaurar' : 'Excluir' }}</span>
+            </button>
           </div>
 
           <!-- Card Content -->
@@ -163,11 +180,13 @@
                 v-model="labels[item.frame_id]"
                 type="text"
                 placeholder="Etiqueta dataset"
-                class="flex-1 bg-slate-50 border-2 border-slate-900 rounded-none px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 font-bold shadow-[2px_2px_0_0_#0f172a]"
+                :disabled="excludedMap[item.frame_id]"
+                class="flex-1 bg-slate-50 border-2 border-slate-900 rounded-none px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 font-bold shadow-[2px_2px_0_0_#0f172a] disabled:opacity-40"
               />
               <button
                 @click="saveToDataset(item)"
-                class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 rounded-none border-2 border-slate-900 transition-all shadow-[2px_2px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none cursor-pointer"
+                :disabled="excludedMap[item.frame_id]"
+                class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 rounded-none border-2 border-slate-900 transition-all shadow-[2px_2px_0_0_#0f172a] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none cursor-pointer disabled:opacity-40"
               >
                 Guardar
               </button>
@@ -184,7 +203,7 @@ import { ref, reactive, computed } from 'vue'
 import { videoSearchService } from '../services/videoSearchService'
 import type { SearchResultItem } from '../types'
 import Hero3D from '../components/Hero3D.vue'
-import { Search, Sliders, Download, Sparkles, Clock, Film, CheckCircle2, AlertCircle } from 'lucide-vue-next'
+import { Search, Sliders, Download, Sparkles, Clock, Film, CheckCircle2, AlertCircle, EyeOff, Eye } from 'lucide-vue-next'
 import confetti from 'canvas-confetti'
 
 const query = ref('')
@@ -200,13 +219,34 @@ const exportSuccess = ref<string | null>(null)
 const hasSearched = ref(false)
 const bulkLabel = ref('')
 const labels = reactive<Record<string, string>>({})
+const excludedMap = reactive<Record<string, boolean>>({})
 
+// Filtro computado en base al rango de puntuación
 const filteredResults = computed(() => {
   return results.value.filter((item) => {
     const scorePercent = item.score * 100
     return scorePercent >= minScore.value && scorePercent <= maxScore.value
   })
 })
+
+// Resultados listos para guardar (excluyendo los marcados como excluidos)
+const readyToSaveResults = computed(() => {
+  return filteredResults.value.filter(item => !excludedMap[item.frame_id])
+})
+
+const excludedCount = computed(() => {
+  return filteredResults.value.filter(item => excludedMap[item.frame_id]).length
+})
+
+const toggleExclude = (frameId: string) => {
+  excludedMap[frameId] = !excludedMap[frameId]
+}
+
+const restoreAllExclusions = () => {
+  Object.keys(excludedMap).forEach(key => {
+    delete excludedMap[key]
+  })
+}
 
 const handleSearch = async () => {
   if (!query.value.trim()) return
@@ -215,6 +255,9 @@ const handleSearch = async () => {
   error.value = null
   exportSuccess.value = null
   hasSearched.value = true
+
+  // Limpiar exclusiones anteriores al buscar de nuevo
+  Object.keys(excludedMap).forEach(key => delete excludedMap[key])
 
   try {
     const data = await videoSearchService.search(query.value, limit.value, 0)
@@ -238,6 +281,7 @@ const handleSearch = async () => {
 }
 
 const saveToDataset = async (item: SearchResultItem) => {
+  if (excludedMap[item.frame_id]) return
   const label = labels[item.frame_id] || query.value.trim()
   if (!label) {
     alert('Por favor ingresa una etiqueta válida.')
@@ -267,15 +311,15 @@ const saveAllFilteredToDataset = async () => {
     return
   }
 
-  if (filteredResults.value.length === 0) {
-    alert('No hay imágenes filtradas para guardar.')
+  if (readyToSaveResults.value.length === 0) {
+    alert('No hay imágenes disponibles para guardar (todas están excluidas).')
     return
   }
 
   loading.value = true
   try {
     let savedCount = 0
-    for (const item of filteredResults.value) {
+    for (const item of readyToSaveResults.value) {
       await videoSearchService.exportDataset({
         video_name: item.video_name,
         frame_id: item.frame_id,
